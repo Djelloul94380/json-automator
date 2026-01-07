@@ -178,7 +178,7 @@ def app_ui():
                 const file = fileInput.files[0];
                 if (!file) { alert("Please select a .xlsx file first."); return; }
 
-                const mode = document.querySelector('input[name=\"mode\"]:checked').value;
+                const mode = document.querySelector('input[name=\\"mode\\"]:checked').value;
                 const endpoint = mode === 'rows' ? '/convert' : '/convert/config';
 
                 const formData = new FormData();
@@ -289,7 +289,14 @@ def parse_excel_to_json(file_bytes: bytes) -> List[Dict[str, Any]]:
         d: Dict[str, Any] = {}
         for idx, v in enumerate(row):
             col_name = headers[idx] if idx < len(headers) else f"col_{idx}"
-            d[col_name] = v
+
+            # special handling: if this is the 'required' column and the cell is empty,
+            # normalize it to "no" instead of leaving it as null
+            if col_name == "required" and (v is None or str(v).strip() == ""):
+                d[col_name] = "no"
+            else:
+                d[col_name] = v
+
         # Ignore fully empty rows
         if any(v not in (None, "") for v in d.values()):
             rows.append(d)
@@ -342,7 +349,7 @@ def rows_to_config_key_value(rows: List[Dict[str, Any]]) -> Tuple[Dict[str, Any]
         key_raw = row.get("key")
         value = row.get("value")
 
-        # If 'required' cell is empty, treat it as "no"
+        # If 'required' cell is empty or normalized to "no", treat accordingly
         required = (str(row.get("required", "")).strip().lower() or "no")
         value_type = str(row.get("type", "string")).strip().lower()
 
